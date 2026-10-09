@@ -5,8 +5,9 @@ import { getStatusVariant as getConnectionStatusVariant } from "@/shared/utils/c
 import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
+import { translate } from "@/i18n/runtime";
 
-export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, oneByOneStatus = null, autoPing = null }) {
+export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst, isLast, onMoveUp, onMoveDown, onToggleActive, onUpdateProxy, onEdit, onDelete, oneByOneStatus = null, autoPing = null, modelSync = null }) {
   const [showProxyDropdown, setShowProxyDropdown] = useState(false);
   const [updatingProxy, setUpdatingProxy] = useState(false);
   const proxyDropdownRef = useRef(null);
@@ -191,6 +192,14 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
               </Badge>
             )}
           </div>
+          {modelSync && connection.providerSpecificData?.modelSyncLastSuccessAt && (
+            <p className="mt-1 text-[11px] text-text-muted">
+              {translate("Last model sync")}: {new Date(connection.providerSpecificData.modelSyncLastSuccessAt).toLocaleString()}
+            </p>
+          )}
+          {modelSync && connection.providerSpecificData?.modelSyncError && (
+            <p role="alert" className="mt-1 text-[11px] text-red-500">{translate(connection.providerSpecificData.modelSyncError)}</p>
+          )}
           {hasAnyProxy && (
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <span className="max-w-full truncate text-[11px] text-text-muted sm:max-w-[420px]" title={proxyDisplayText}>
@@ -245,6 +254,35 @@ export default function ConnectionRow({ connection, proxyPools, isOAuth, isFirst
                 </div>
               )}
             </div>
+          )}
+          {modelSync && (
+            <>
+              <button
+                type="button"
+                onClick={modelSync.onSync}
+                disabled={modelSync.busy || connection.isActive === false}
+                aria-label={translate("Sync models now")}
+                title={translate("Sync models now")}
+                className="flex w-full flex-col items-center rounded px-2 py-1 text-text-muted hover:bg-black/5 hover:text-primary dark:hover:bg-white/5 disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">{modelSync.busy ? "progress_activity" : "sync"}</span>
+                <span className="text-[10px] leading-tight">{translate("Sync models")}</span>
+              </button>
+              <div className="flex flex-col items-center justify-center gap-1 px-2 py-1" title={translate("Discover new upstream models every 6 hours") }>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={connection.providerSpecificData?.autoSync === true}
+                  aria-label={translate("Auto-sync models")}
+                  onClick={() => modelSync.onToggle(connection.providerSpecificData?.autoSync !== true)}
+                  disabled={modelSync.busy}
+                  className={`h-4 w-8 rounded-full p-0.5 transition-colors disabled:opacity-50 ${connection.providerSpecificData?.autoSync === true ? "bg-primary" : "bg-surface-3"}`}
+                >
+                  <span className={`block size-3 rounded-full bg-white transition-transform ${connection.providerSpecificData?.autoSync === true ? "translate-x-4" : ""}`} />
+                </button>
+                <span className="text-[10px] leading-tight">{translate("Auto-sync models")}</span>
+              </div>
+            </>
           )}
           {autoPing && (
             <Tooltip text={autoPingTooltip}>

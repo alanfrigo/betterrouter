@@ -2,6 +2,7 @@ export default {
   id: "azure",
   priority: 40,
   alias: "azure",
+  aliases: ["azure-openai"],
   display: {
     name: "Azure OpenAI",
     icon: "cloud",

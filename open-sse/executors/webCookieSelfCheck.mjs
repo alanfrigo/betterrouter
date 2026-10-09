@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import "../../tests/register-aliases.mjs";
+const { frameConnectMessage, decodeConnectFrame } = await import("./kimi-web.js");
+const { normalizeSessionCookieHeader } = await import("../../src/lib/providers/webCookieAuth.js");
+const { assertLoopbackBrowserEndpoint } = await import("../utils/browserEndpoint.js");
+const { sanitizeErrorMessage } = await import("../utils/errorSanitization.js");
+
+const message = { text: "Unicode: 你好 🌍", op: "append" };
+const frame = frameConnectMessage(JSON.stringify(message));
+assert.deepEqual(decodeConnectFrame(frame, 0), { consumed: frame.length, frame: { flags: 0, message } });
+assert.equal(decodeConnectFrame(frame.subarray(0, frame.length - 1), 0).consumed, 0);
+assert.equal(decodeConnectFrame(Uint8Array.of(0, 255, 255, 255, 255), 0).consumed, -1);
+assert.throws(() => decodeConnectFrame(Uint8Array.of(1, 0, 0, 0, 0), 0), /compressed/);
+assert.equal(normalizeSessionCookieHeader('[{"name":"sso","value":"test"}]', "sso"), "sso=test");
+assert.throws(() => normalizeSessionCookieHeader('[{"name":"sso"}]', "sso"), /value/);
+assert.equal(assertLoopbackBrowserEndpoint("http://127.0.0.1:9222"), "http://127.0.0.1:9222");
+assert.throws(() => assertLoopbackBrowserEndpoint("https://remote.example:9222"), /loopback/);
+assert.throws(() => assertLoopbackBrowserEndpoint("http://user:secret@127.0.0.1:9222"), /loopback/);
+assert.ok(!sanitizeErrorMessage("Cookie: sso=topsecret; sessionid=secret").includes("topsecret"));
+console.log("Web-cookie framing, credential boundaries, and browser endpoint checks passed");

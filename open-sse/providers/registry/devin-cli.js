@@ -1,9 +1,7 @@
 export default {
   id: "devin-cli",
   alias: "dv",
-  aliases: ["devin"],
   uiAlias: "dv",
-  hidden: true,
   display: {
     name: "Devin CLI",
     icon: "smart_toy",

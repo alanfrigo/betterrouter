@@ -295,13 +295,17 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         "glm",
         "minimax-code",
         "minimax-code-global",
+        "ghe-copilot",
+        "workbuddy",
+        "amazon-q",
       ];
       if (deviceCodeProviders.includes(provider)) {
         setIsDeviceCode(true);
         setStep("waiting");
 
         const deviceCodeUrl = new URL(`/api/oauth/${provider}/device-code`, window.location.origin);
-        if (provider === "kiro" && idcConfig?.startUrl) {
+        if (oauthMeta) Object.entries(oauthMeta).forEach(([key, value]) => { if (value) deviceCodeUrl.searchParams.set(key, value); });
+        if ((provider === "kiro" || provider === "amazon-q") && idcConfig?.startUrl) {
           deviceCodeUrl.searchParams.set("start_url", idcConfig.startUrl);
           if (idcConfig.region) {
             deviceCodeUrl.searchParams.set("region", idcConfig.region);
@@ -321,7 +325,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         // Pass extraData for Kiro (contains _clientId, _clientSecret) and
         // Qoder (contains _qoderMachineId / _qoderNonce — needed so mapTokens
         // can persist the machine id alongside the token).
-        const extraData = provider === "kiro"
+        const extraData = provider === "kiro" || provider === "amazon-q"
           ? {
               _clientId: data._clientId,
               _clientSecret: data._clientSecret,
@@ -341,6 +345,8 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
           ? { _zcodePollToken: data._zcodePollToken }
           : (provider === "minimax-code" || provider === "minimax-code-global")
           ? { _minimaxPollByUser: data._minimaxPollByUser }
+          : provider === "ghe-copilot"
+          ? { gheUrl: data.gheUrl, clientId: data.clientId }
           : null;
         startPolling(
           // MiniMax's device-code variant returns no device_code: the token
@@ -373,7 +379,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
       const authorizeUrl = new URL(`/api/oauth/${provider}/authorize`, window.location.origin);
       authorizeUrl.searchParams.set("redirect_uri", redirectUri);
       if (oauthMeta) {
-        Object.entries(oauthMeta).forEach(([k, v]) => { if (v) authorizeUrl.searchParams.set(k, v); });
+        Object.entries(oauthMeta).forEach(([k, v]) => { if (v && k !== "clientSecret") authorizeUrl.searchParams.set(k, v); });
       }
       const res = await fetch(authorizeUrl.toString());
       const data = await res.json();

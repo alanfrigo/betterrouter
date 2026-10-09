@@ -10,6 +10,30 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const REGISTRY_DIR = path.join(ROOT, "open-sse/providers/registry");
 
+// Index-only mode preserves existing import order and intentionally disabled entries.
+if (process.argv.includes("--index-only")) {
+  const indexPath = path.join(REGISTRY_DIR, "index.js");
+  const original = fs.readFileSync(indexPath, "utf8");
+  const known = new Set();
+  const duplicates = [];
+  let current = original.replace(/^import (p\w+) from "\.\/([^\"]+)";\n/gm, (line, name, file) => {
+    if (known.has(file)) { duplicates.push(name); return ""; }
+    known.add(file);
+    return line;
+  });
+  for (const name of duplicates) current = current.replace(new RegExp(`^  ${name},\\n`, "m"), "");
+  const imports = [...current.matchAll(/^import (p\w+) from "\.\/([^\"]+)";/gm)];
+  const additions = fs.readdirSync(REGISTRY_DIR).filter((file) => file.endsWith(".js") && file !== "index.js" && !known.has(file)).sort();
+  let next = Math.max(-1, ...imports.map((match) => parseInt(match[1].slice(1), 10))) + 1;
+  const entries = additions.map((file) => ({ file, name: `p${next++}` }));
+  const importBlock = entries.map(({ file, name }) => `import ${name} from "./${file}";`).join("\n");
+  const exportBlock = entries.map(({ name }) => `  ${name},`).join("\n");
+  const generated = entries.length ? current.replace(/\nexport default \[/, `\n${importBlock}\n\nexport default [`).replace(/\n\];\s*$/, `\n${exportBlock}\n];\n`) : current;
+  if (generated !== original) fs.writeFileSync(indexPath, generated);
+  console.log(`Registry index: added ${entries.length} entries; preserved existing order and exclusions`);
+  process.exit(0);
+}
+
 // ── 1. Build DISPLAY map từ providersDisplay.js (parse thủ công để không cần import) ──
 // Đọc file, eval trong sandbox đơn giản
 const displaySrc = fs.readFileSync(path.join(ROOT, "src/shared/constants/providersDisplay.js"), "utf8");

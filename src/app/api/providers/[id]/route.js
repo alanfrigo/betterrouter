@@ -5,7 +5,7 @@ import {
   updateProviderConnection,
   deleteProviderConnection,
 } from "@/models";
-import { toProviderConnectionResponse, usesAwsCredentialForm } from "@/lib/providerConnectionResponse";
+import { toProviderConnectionResponse, mergeProviderSecretFields } from "@/lib/providerConnectionResponse";
 
 function normalizeProxyConfig(body = {}) {
   const hasAnyProxyField =
@@ -129,20 +129,9 @@ export async function PUT(request, { params }) {
         proxyPoolResult.hasProxyPoolField
       )
     ) {
-      const incomingProviderSpecificData = { ...(providerSpecificData || {}) };
-      const isAwsCredential = usesAwsCredentialForm(existing.provider);
-      // The edit form cannot read the stored token back. An empty password field means
-      // keep the saved credential; null explicitly removes it.
-      if (isAwsCredential && incomingProviderSpecificData.sessionToken === "") {
-        delete incomingProviderSpecificData.sessionToken;
-      }
-      updateData.providerSpecificData = {
-        ...(existing.providerSpecificData || {}),
-        ...incomingProviderSpecificData,
-      };
-      if (isAwsCredential && incomingProviderSpecificData.sessionToken === null) {
-        delete updateData.providerSpecificData.sessionToken;
-      }
+      // Redacted credential fields cannot round-trip through the form: empty retains,
+      // null removes, and a supplied non-empty credential replaces the saved value.
+      updateData.providerSpecificData = mergeProviderSecretFields(existing.providerSpecificData, providerSpecificData || {}, existing.provider);
 
       if (proxyConfig.hasAnyProxyField) {
         updateData.providerSpecificData.connectionProxyEnabled = proxyConfig.connectionProxyEnabled;

@@ -127,7 +127,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   }
 
   // Per-request opt-out: client can bypass all token savers via header
-  const tokenSaverEnabled = clientRawRequest?.headers?.[TOKEN_SAVER_HEADER]?.toLowerCase() !== "off";
+  const tokenSaverEnabled = !(provider === "chatgpt-web-codex" && sourceFormat === FORMATS.OPENAI_RESPONSES) && clientRawRequest?.headers?.[TOKEN_SAVER_HEADER]?.toLowerCase() !== "off";
 
   // Cursor's translator rewrites tool_result into user text, so RTK must run on
   // the source body before translation. Every other pair translates the tool
@@ -173,7 +173,8 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   // Native passthrough: CLI tool and provider are the same ecosystem
   // Skip all translation/normalization — only model and Bearer are swapped
   const clientTool = detectClientTool(clientRawRequest?.headers || {}, body);
-  const passthrough = isNativePassthrough(clientTool, provider);
+  const nativeBrowserResponses = provider === "chatgpt-web-codex" && sourceFormat === FORMATS.OPENAI_RESPONSES;
+  const passthrough = nativeBrowserResponses || isNativePassthrough(clientTool, provider);
 
   // Expose raw client headers to translators/executors for session-id resolution
   if (credentials) credentials.rawHeaders = clientRawRequest?.headers || {};
@@ -197,6 +198,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   if (passthrough) {
     log?.debug?.("PASSTHROUGH", `${clientTool} → ${provider} | native lossless`);
     translatedBody = { ...body, model: stripThinkingSuffix(upstreamModel) };
+    if (nativeBrowserResponses) translatedBody._nativeCodexPassthrough = true;
     if (provider === "codex") {
       const suffixThinking = {};
       applyThinking(sourceFormat, upstreamModel, suffixThinking, provider);
@@ -227,7 +229,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Tool normalization: MCP-equivalent built-in dedup (Claude clients) + same-name
   // dedup for DeepSeek models (upstream rejects duplicate tool names on all endpoints).
-  if (Array.isArray(translatedBody.tools)) {
+  if (!nativeBrowserResponses && Array.isArray(translatedBody.tools)) {
     const { tools: deduped, stripped } = dedupeTools(translatedBody.tools, { clientTool, model });
     if (stripped.length > 0) {
       translatedBody.tools = deduped;
@@ -310,7 +312,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // PXPIPE: image bulky context (Claude-format bodies only), last saver before dispatch
   let pxpipeSummary = null;
-  if (pxpipeEnabled) {
+  if (!nativeBrowserResponses && pxpipeEnabled) {
     const pxpipeResult = await compressWithPxpipe(translatedBody, {
       enabled: true, format: finalFormat, model: upstreamModel,
       minChars: pxpipeMinChars, timeoutMs: pxpipeTimeoutMs, transform: pxpipeTransform,
@@ -393,6 +395,13 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       log,
       proxyOptions,
       providerOverrides,
+      connectionId,
+      rawBody: body,
+      onCredentialsRefreshed,
+      clientResponseFormat: sourceFormat,
+      sourceFormat,
+      wireFormat: finalFormat,
+      clientHeaders: clientRawRequest?.headers || {},
     });
     providerResponse = result.response;
     providerUrl = result.url;
@@ -462,6 +471,13 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
             log,
             proxyOptions,
             providerOverrides,
+            connectionId,
+            rawBody: body,
+            onCredentialsRefreshed,
+            clientResponseFormat: sourceFormat,
+            sourceFormat,
+            wireFormat: finalFormat,
+            clientHeaders: clientRawRequest?.headers || {},
           });
           if (retryResult.response.ok) {
             providerResponse = retryResult.response;

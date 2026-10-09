@@ -2,9 +2,7 @@ export default {
   id: "featherless",
   priority: 65,
   alias: "featherless",
-  aliases: [
-    "fl",
-  ],
+  aliases: ["fl","featherless-ai"],
   uiAlias: "fl",
   display: {
     name: "Featherless",

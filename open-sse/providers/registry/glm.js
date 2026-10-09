@@ -4,6 +4,7 @@ export default {
   id: "glm",
   priority: 140,
   alias: "glm",
+  aliases: ["zai"],
   display: {
     name: "Zai GLM Coding",
     icon: "code",

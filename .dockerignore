@@ -7,12 +7,19 @@
 **/.vscode
 
 # Dependencies and build output
-node_modules
-.next
+**/node_modules
+**/.next*
+OmniRoute
+cli/dist
+cli/build
+cli/app
+*.tgz
 out
 build
 dist
 coverage
+**/coverage
+*.tsbuildinfo
 
 # Runtime data and logs
 data

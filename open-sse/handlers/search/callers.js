@@ -1,3 +1,5 @@
+import { PROTOCOL_BUILDERS } from "./mediaProtocols.js";
+import { buildXSearchRequest } from "./xSearch.js";
 /**
  * Search Provider Request Builders
  *
@@ -448,6 +450,9 @@ function buildGlmSearchRequest(config, params) {
 // ── Dispatcher ──────────────────────────────────────────────────────────
 
 const BUILDERS = {
+  ...PROTOCOL_BUILDERS,
+  "x-search": buildXSearchRequest,
+  "perplexity-search": buildPerplexityRequest,
   "serper": buildSerperRequest,
   "brave-search": buildBraveRequest,
   "perplexity": buildPerplexityRequest,

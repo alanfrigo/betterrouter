@@ -1,6 +1,7 @@
 export default {
   id: "google-pse",
   alias: "gpse",
+  aliases: ["google-pse-search"],
   display: {
     name: "Google PSE",
     icon: "search",

@@ -4,9 +4,7 @@ export default {
   id: "xiaomi-tokenplan",
   priority: 300,
   alias: "xiaomi-tokenplan",
-  aliases: [
-    "xmtp",
-  ],
+  aliases: ["xmtp","xiaomi-mimo-token-plan"],
   uiAlias: "xmtp",
   display: {
     name: "Xiaomi MiMo (Token Plan)",

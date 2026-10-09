@@ -24,7 +24,7 @@ concurrency:
   queue: max
 
 env:
-  DOCKERHUB_IMAGE: decolua/9router
+  DOCKERHUB_IMAGE: alanmf30/betterrouter
 
 jobs:
   prepare:
@@ -104,7 +104,7 @@ jobs:
           }
 
           const commit = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
-          const publishDockerHub = process.env.REPOSITORY === "decolua/9router";
+          const publishDockerHub = process.env.REPOSITORY === "alanfrigo/betterrouter";
           const ghcrImage = `ghcr.io/${process.env.REPOSITORY.toLowerCase()}`;
           const isPrerelease = version.includes("-");
           const promoteLatest = (process.env.EVENT_NAME === "push" && !isPrerelease)
@@ -181,14 +181,13 @@ jobs:
           outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           build-args: |
             APP_VERSION=${{ needs.prepare.outputs.version }}
-            ALPINE_MIRROR=${{ vars.ALPINE_MIRROR || 'dl-cdn.alpinelinux.org' }}
             NPM_REGISTRY=${{ vars.NPM_REGISTRY || 'https://registry.npmjs.org/' }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ needs.prepare.outputs.commit }}
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
-          cache-from: type=gha,scope=9router-${{ matrix.suffix }}
-          cache-to: type=gha,mode=max,scope=9router-${{ matrix.suffix }}
+          cache-from: type=gha,scope=betterrouter-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=betterrouter-${{ matrix.suffix }}
           provenance: false
           sbom: false
 

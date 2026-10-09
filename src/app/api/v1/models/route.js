@@ -20,6 +20,7 @@ import { resolveZedModels } from "open-sse/shared/zedAuth.js";
 import { updateProviderCredentials } from "@/sse/services/tokenRefresh";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { capabilitiesFromServiceKind, getCapabilitiesForModel, aggregateComboCapabilities } from "open-sse/providers/capabilities.js";
+import { AUTO_MODEL_IDS } from "@/sse/services/autoRouting.js";
 
 // Qoder shares one live resolver across intl (qoder) and CN (qoder-cn); the
 // credentials carry the provider id so qoderModels picks the right region's
@@ -180,12 +181,17 @@ const MODEL_TYPE_TO_KIND = {
   stt: "stt",
   imageToText: "imageToText",
   video: "video",
+  music: "music",
 };
 
 function modelKind(model) {
   const k = model?.kind || model?.type;
   if (!k) return LLM_KIND;
   return MODEL_TYPE_TO_KIND[k] || LLM_KIND;
+}
+
+function modelKinds(model) {
+  return (model?.supportedKinds || [modelKind(model)]).map((kind) => MODEL_TYPE_TO_KIND[kind] || kind);
 }
 
 // For dynamic/unknown model IDs (compatible providers, alias map, custom models)
@@ -404,7 +410,7 @@ export async function buildModelsList(kindFilter, options = {}) {
       const providerId = ALIAS_TO_PROVIDER_ID[alias] || alias;
       if (!providerMatchesKinds(providerId, kindFilter)) continue;
       for (const model of providerModels) {
-        if (!kindFilter.includes(modelKind(model))) continue;
+        if (!modelKinds(model).some((kind) => kindFilter.includes(kind))) continue;
         if (isDisabled(alias, model.id)) continue;
         models.push({
           id: `${alias}/${model.id}`,
@@ -449,9 +455,7 @@ export async function buildModelsList(kindFilter, options = {}) {
         isOpenAICompatibleProvider(providerId) || isAnthropicCompatibleProvider(providerId);
 
       // Build kind lookup for static models so we can filter even when only IDs are exposed
-      const staticModelKindById = new Map(
-        providerModels.map((m) => [m.id, modelKind(m)])
-      );
+      const staticModelKindsById = new Map(providerModels.map((model) => [model.id, modelKinds(model)]));
       let liveModelKindById = new Map();
       let liveCapabilitiesById = new Map();
 
@@ -556,10 +560,11 @@ export async function buildModelsList(kindFilter, options = {}) {
         // Resolve kind: prefer custom/live metadata, then static, then ID heuristics.
         const customKind = customModelKindById.get(modelId);
         const liveKind = liveModelKindById.get(modelId);
-        const kind = customKind || liveKind || staticModelKindById.get(modelId) || inferKindFromUnknownModelId(modelId);
+        const kinds = customKind || liveKind ? [customKind || liveKind] : staticModelKindsById.get(modelId) || [inferKindFromUnknownModelId(modelId)];
+        const kind = kinds.find((candidate) => kindFilter.includes(candidate)) || kinds[0];
         // imageToText custom models stay in the LLM list (vision-capable chat models)
-        const allowAsLlm = kind === "imageToText" && kindFilter.includes(LLM_KIND);
-        if (!kindFilter.includes(kind) && !allowAsLlm) continue;
+        const allowAsLlm = kinds.includes("imageToText") && kindFilter.includes(LLM_KIND);
+        if (!kinds.some((candidate) => kindFilter.includes(candidate)) && !allowAsLlm) continue;
         if (isDisabled(outputAlias, modelId) || isDisabled(staticAlias, modelId)) continue;
 
         const model = {
@@ -620,6 +625,9 @@ export async function buildModelsList(kindFilter, options = {}) {
     }
   }
 
+  if (kindFilter.includes(LLM_KIND) && connections.length > 0) {
+    for (const id of AUTO_MODEL_IDS) models.push({ id, object: "model", kind: LLM_KIND, owned_by: "auto" });
+  }
   const dedupedModels = [];
   const seenModelIds = new Set();
   for (const model of models) {

@@ -37,6 +37,11 @@ function buildProviderEntry(r) {
     ...(r.authHint ? { authHint: r.authHint } : {}),
     ...(r.apiKeyOptionalWith ? { apiKeyOptionalWith: r.apiKeyOptionalWith } : {}),
     ...(r.credentialForm ? { credentialForm: r.credentialForm } : {}),
+    ...(r.credentialFields ? { credentialFields: r.credentialFields } : {}),
+    ...(r.localDefault ? { localDefault: r.localDefault } : {}),
+    ...(r.aliases ? { aliases: r.aliases } : {}),
+    ...(r.taskOnly ? { taskOnly: true } : {}),
+    ...(r.systemOnly ? { systemOnly: true } : {}),
   };
 }
 
@@ -65,7 +70,7 @@ export const THINKING_CONFIG = {
 };
 
 export const OAUTH_PROVIDERS = byCategory("oauth");
-export const APIKEY_PROVIDERS = byCategory("apikey");
+export const APIKEY_PROVIDERS = { ...byCategory("apikey"), ...byCategory("upstream"), ...byCategory("cloud") };
 
 // Web Cookie Providers (use browser session cookie instead of API key)
 export const WEB_COOKIE_PROVIDERS = byCategory("webCookie");
@@ -113,7 +118,7 @@ export const AUTH_METHODS = {
 // Helper: Get provider by alias
 export function getProviderByAlias(alias) {
   for (const provider of Object.values(AI_PROVIDERS)) {
-    if (provider.alias === alias || provider.id === alias) {
+    if (provider.alias === alias || provider.id === alias || provider.aliases?.includes(alias)) {
       return provider;
     }
   }
@@ -134,7 +139,7 @@ export function getProviderAlias(providerId) {
 
 // Alias to ID mapping (for quick lookup)
 export const ALIAS_TO_ID = Object.values(AI_PROVIDERS).reduce((acc, p) => {
-  acc[p.alias] = p.id;
+  for (const alias of [p.alias, p.id, ...(p.aliases || [])]) if (alias && !acc[alias]) acc[alias] = p.id;
   return acc;
 }, {});
 

@@ -24,6 +24,7 @@ import AddCustomModelModal from "./AddCustomModelModal";
 import BulkImportCodexModal from "./BulkImportCodexModal";
 import BulkImportGrokCliModal from "./BulkImportGrokCliModal";
 import CustomConfigCard from "./CustomConfigCard";
+import SpecialProtocolAuthModal from "@/shared/components/SpecialProtocolAuthModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -58,6 +59,8 @@ export default function ProviderDetailPage() {
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [modelAliases, setModelAliases] = useState({});
   const [customModels, setCustomModels] = useState([]);
+  const [syncingConnectionIds, setSyncingConnectionIds] = useState(() => new Set());
+  const [modelSyncError, setModelSyncError] = useState("");
   const [headerImgError, setHeaderImgError] = useState(false);
   const [modelTestResults, setModelTestResults] = useState({});
   const [modelsTestError, setModelsTestError] = useState("");
@@ -462,6 +465,30 @@ export default function ProviderDetailPage() {
   const handleAutoPingConnection = (connectionId, on) => {
     saveAutoPing({ ...autoPing, connections: { ...autoPing.connections, [connectionId]: on } });
   };
+  const handleModelSync = async (connectionId, enabled) => {
+    if (syncingConnectionIds.has(connectionId)) return;
+    setSyncingConnectionIds((previous) => new Set(previous).add(connectionId));
+    setModelSyncError("");
+    try {
+      const res = await fetch(`/api/providers/${connectionId}/sync-models`, {
+        method: typeof enabled === "boolean" ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        ...(typeof enabled === "boolean" ? { body: JSON.stringify({ enabled }) } : {}),
+      });
+      const data = await res.json();
+      if (!res.ok || data.sync?.error) setModelSyncError(data.sync?.error || data.error || "Model sync failed; previous catalog retained");
+      await Promise.all([fetchConnections(), fetchCustomModels()]);
+    } catch {
+      setModelSyncError("Model sync failed; previous catalog retained");
+    } finally {
+      setSyncingConnectionIds((previous) => {
+        const next = new Set(previous);
+        next.delete(connectionId);
+        return next;
+      });
+    }
+  };
+
 
   useEffect(() => {
     fetchConnections();
@@ -598,45 +625,7 @@ export default function ProviderDetailPage() {
 
     setImportingQoderModels(true);
     try {
-      const res = await fetch(`/api/providers/${activeConnection.id}/models`);
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || translate("Failed to fetch models"));
-        return;
-      }
-      const models = data.models || [];
-      if (models.length === 0) {
-        alert(translate("No models returned"));
-        return;
-      }
-
-      let importedCount = 0;
-      for (const model of models) {
-        const modelId = model.id || model.name;
-        if (!modelId) continue;
-        
-        // Qoder model ID format may be "qoder/auto", "qoder-cn/auto" or "auto",
-        // need to remove the provider prefix before storing.
-        const cleanModelId = modelId.replace(/^(qoder-cn|qoder)\//, "");
-        const alreadyExists = customModels.some(
-          (entry) => entry.providerAlias === providerStorageAlias && entry.id === cleanModelId && (entry.kind || entry.type || "llm") === "llm"
-        ) || Object.values(modelAliases).includes(`${providerStorageAlias}/${cleanModelId}`);
-        if (alreadyExists) {
-          continue;
-        }
-
-        await handleAddCustomModel(cleanModelId, "llm", providerStorageAlias);
-        importedCount += 1;
-      }
-      
-      if (importedCount === 0) {
-        alert(translate("All models already exist, no new models added"));
-      } else {
-        alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
-      }
-    } catch (error) {
-      console.log("Error importing Qoder models:", error);
-      alert(translate("Error fetching models") + ": " + error.message);
+      await handleModelSync(activeConnection.id);
     } finally {
       setImportingQoderModels(false);
     }
@@ -652,38 +641,7 @@ export default function ProviderDetailPage() {
     }
     setImportingClineModels(true);
     try {
-      const res = await fetch(`/api/providers/${activeConnection.id}/models`);
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || translate("Failed to fetch models"));
-        return;
-      }
-      const models = data.models || [];
-      if (models.length === 0) {
-        alert(translate("No models returned"));
-        return;
-      }
-      let importedCount = 0;
-      for (const model of models) {
-        const modelId = model.id || model.name;
-        if (!modelId) continue;
-        const alreadyExists = customModels.some(
-          (entry) => entry.providerAlias === providerStorageAlias && entry.id === modelId && (entry.kind || entry.type || "llm") === "llm"
-        ) || Object.values(modelAliases).includes(`${providerStorageAlias}/${modelId}`);
-        if (alreadyExists) {
-          continue;
-        }
-        await handleAddCustomModel(modelId, "llm", providerStorageAlias);
-        importedCount += 1;
-      }
-      if (importedCount === 0) {
-        alert(translate("All models already exist, no new models added"));
-      } else {
-        alert(translate("Successfully added") + ` ${importedCount} ` + translate("models"));
-      }
-    } catch (error) {
-      console.log("Error importing Cline models:", error);
-      alert(translate("Error fetching models") + ": " + error.message);
+      await handleModelSync(activeConnection.id);
     } finally {
       setImportingClineModels(false);
     }
@@ -1046,6 +1004,11 @@ export default function ProviderDetailPage() {
                   onToggle: (on) => handleAutoPingConnection(conn.id, on),
                   provider: providerId,
                 } : null}
+                modelSync={{
+                  busy: syncingConnectionIds.has(conn.id),
+                  onToggle: (enabled) => handleModelSync(conn.id, enabled),
+                  onSync: () => handleModelSync(conn.id),
+                }}
                 onUpdateProxy={async (proxyPoolId) => {
                   try {
                     const res = await fetch(`/api/providers/${conn.id}`, {
@@ -1162,6 +1125,10 @@ export default function ProviderDetailPage() {
           onDeleteAlias={handleDeleteAlias}
           onAddCustomModel={(modelId) => handleAddCustomModel(modelId, "llm", providerStorageAlias)}
           onDeleteCustomModel={(modelId) => handleDeleteCustomModel(modelId, "llm", providerStorageAlias)}
+          onImportModels={() => {
+            const connection = connections.find((item) => item.isActive !== false);
+            if (connection) return handleModelSync(connection.id);
+          }}
           connections={connections}
           isAnthropic={isAnthropicCompatible}
         />
@@ -1821,6 +1788,7 @@ export default function ProviderDetailPage() {
         {providerId === "zed" && !!liveModelsError && (
           <p className="text-xs text-red-500 mb-3 break-words">{liveModelsError}</p>
         )}
+        {!!modelSyncError && <p role="alert" className="text-xs text-red-500 mb-3 break-words">{translate(modelSyncError)}</p>}
         {renderModelsSection()}
       </Card>
 
@@ -1847,6 +1815,8 @@ export default function ProviderDetailPage() {
           onSuccess={handleOAuthSuccess}
           onClose={() => setShowOAuthModal(false)}
         />
+      ) : ["ghe-copilot", "gitlab-duo", "devin-desktop", "devin-cli"].includes(providerId) ? (
+        <SpecialProtocolAuthModal isOpen={showOAuthModal} provider={providerId} providerInfo={providerInfo} onSuccess={handleOAuthSuccess} onClose={() => setShowOAuthModal(false)} />
       ) : providerId === "gitlab" ? (
         <GitLabAuthModal
           isOpen={showOAuthModal}

@@ -241,17 +241,18 @@ export async function GET(request, { params }) {
         return NextResponse.json({ error: "Provider does not support device code flow" }, { status: 400 });
       }
 
-      const authData = await generateAuthData(provider, null);
+      const deviceMeta = Object.fromEntries(["gheUrl", "clientId"].map(key => [key, searchParams.get(key)]).filter(([, value]) => value));
+      const authData = await generateAuthData(provider, null, deviceMeta);
       const startUrl = searchParams.get("start_url");
       const region = searchParams.get("region");
       const authMethod = searchParams.get("auth_method");
-      const deviceOptions = provider === "kiro"
+      const deviceOptions = provider === "kiro" || provider === "amazon-q"
         ? {
             ...(startUrl ? { startUrl } : {}),
             ...(region ? { region } : {}),
             ...(authMethod ? { authMethod } : {}),
           }
-        : undefined;
+        : deviceMeta;
       
       // Providers that don't use PKCE for device code (Grok CLI HAR: plain device_code, no challenge)
       const noPkceDeviceProviders = [
@@ -267,6 +268,9 @@ export async function GET(request, { params }) {
         "grok-cli",
         "muse",
         "glm",
+        "ghe-copilot",
+        "workbuddy",
+        "amazon-q",
       ];
       let deviceData;
       if (noPkceDeviceProviders.includes(provider)) {
@@ -303,6 +307,12 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Invalid or empty request body" }, { status: 400 });
     }
 
+    if (action === "import" && ["devin-desktop", "devin-cli"].includes(provider)) {
+      const token = body.accessToken;
+      if (typeof token !== "string" || token.trim().length < 16 || token.length > 16384) return NextResponse.json({ error: "Valid Devin access token required" }, { status: 400 });
+      const connection = await createProviderConnection({ provider, authType: "oauth", accessToken: token.trim(), refreshToken: null, expiresAt: null, testStatus: "untested", providerSpecificData: { authMethod: "imported" } });
+      return NextResponse.json({ success: true, connection: { id: connection.id, provider: connection.provider } });
+    }
     if (action === "register-session") {
       // Register proxy session out of URL query (state) + body (codeVerifier).
       // Zed's codeVerifier encodes the RSA private key — must stay out of URL/logs.
@@ -500,12 +510,12 @@ export async function POST(request, { params }) {
       }
 
       // Providers that don't use PKCE for device code
-      const noPkceProviders = ["github", "kimi", "kimi-coding", "kilocode", "codebuddy-cn", "codebuddy-intl", "glm"];
+      const noPkceProviders = ["github", "ghe-copilot", "workbuddy", "kimi", "kimi-coding", "kilocode", "codebuddy-cn", "codebuddy-intl", "glm"];
       let result;
       if (noPkceProviders.includes(provider)) {
         // kimi needs extraData._kimiDeviceId for stable X-Msh-Device-Id (CLIProxyAPI parity)
         result = await pollForToken(provider, deviceCode, null, extraData);
-      } else if (provider === "kiro") {
+      } else if (provider === "kiro" || provider === "amazon-q") {
         // Kiro needs extraData (clientId, clientSecret) from device code response
         result = await pollForToken(provider, deviceCode, null, extraData);
       } else if (provider === "qoder" || provider === "qoder-cn") {

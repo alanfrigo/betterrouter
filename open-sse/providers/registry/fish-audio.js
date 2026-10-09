@@ -3,6 +3,7 @@
 export default {
   id: "fish-audio",
   alias: "fish",
+  aliases: ["fishaudio"],
   display: {
     name: "Fish Audio",
     icon: "record_voice_over",

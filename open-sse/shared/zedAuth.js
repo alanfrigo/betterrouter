@@ -225,7 +225,8 @@ export async function fetchZedAuthenticatedUser(credentials, options = {}) {
     {
       method: "GET",
       headers,
-      signal: options.signal ?? undefined,
+      signal: options.signal ?? AbortSignal.timeout(20000),
+      redirect: "error",
     },
     options.proxyOptions ?? null,
   );
@@ -295,7 +296,8 @@ export async function fetchZedLlmToken(credentials, options = {}) {
       method: "POST",
       headers,
       body: JSON.stringify({ organization_id: organizationId }),
-      signal: options.signal ?? undefined,
+      signal: options.signal ?? AbortSignal.timeout(20000),
+      redirect: "error",
     },
     options.proxyOptions ?? null,
   );
@@ -325,7 +327,8 @@ export async function zedLlmFetch(credentials, path, options = {}) {
         ...(options.fetchOptions?.headers || {}),
         Authorization: `Bearer ${token}`,
       },
-      signal: options.signal ?? undefined,
+      signal: options.signal ?? AbortSignal.timeout(20000),
+      redirect: "error",
     });
   };
 

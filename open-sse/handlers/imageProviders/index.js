@@ -12,6 +12,7 @@ import blackForestLabs from "./blackForestLabs.js";
 import runwayml from "./runwayml.js";
 import cloudflareAi from "./cloudflareAi.js";
 import antigravity from "./antigravity.js";
+import { createMediaImageAdapter } from "./mediaProtocols.js";
 
 const ADAPTERS = {
   openai: createOpenAIAdapter("openai"),
@@ -32,6 +33,7 @@ const ADAPTERS = {
   "black-forest-labs": blackForestLabs,
   runwayml,
   "cloudflare-ai": cloudflareAi,
+  ...Object.fromEntries(["ideogram", "deepai", "leonardo", "haiper", "magnific", "segmind", "syntx", "kie", "cheaperinference", "pollinations", "adobe-firefly", "aihorde"].map(id => [id, createMediaImageAdapter(id)])),
 };
 
 export function getImageAdapter(provider) {

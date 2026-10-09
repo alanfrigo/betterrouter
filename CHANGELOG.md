@@ -1,3 +1,15 @@
+# Better Router — Unreleased
+
+## Features
+- **Branding**: Better Router name across dashboard, login, landing, metadata and installable icons; fork repository links and checkout startup command. Preserve upstream compatibility IDs and existing data paths. Remove upstream npm update action from fork dashboard.
+- **Model catalogs**: opt-in automatic synchronization per active connection, immediate enable refresh, six-hour persisted cadence, manual sync, shared live discovery and additive SQLite persistence. New models become available to dashboard selectors and `/v1/models`; failed/empty/static discovery retains prior catalogs.
+- **Providers**: port 247 canonical OmniRoute provider IDs with native adapters, credential/OAuth forms, default models, provider assets, local/browser runtime support and media/search/music integrations. Reuse existing equivalents. Exclude retired services and unverifiable cookie-only Poe/Venice/v0 variants by approved scope; official API-key integrations remain available.
+
+## Security
+- Redact nested provider credentials from management responses; preserve saved secrets on blank edits and clear only on explicit null. Reject credential-bearing redirects in catalog requests, bound discovery timeouts and keep scheduled sync inside server services without an HTTP authentication bypass.
+- Bind operator app-server tokens and OAuth client secrets to trusted endpoints; reject dashboard token-file paths. Classify `auto/offline` against configured local endpoints, retain tool/instruction history and stop immediately on app-server disconnect.
+- Preserve OmniRoute MIT copyright and ship subprocess/runtime assets in standalone and CLI builds. Browser-backed integrations require installed Chromium and authorized upstream sessions.
+
 # v0.5.99 (2026-10-08)
 
 ## Features

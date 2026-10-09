@@ -1,0 +1,21 @@
+import { DEVIN_DESKTOP_CONFIG } from "../constants/specialProtocols.js";
+/** Devin Desktop import-token provider. */
+export const devinDesktop = {
+    config: DEVIN_DESKTOP_CONFIG,
+    flowType: "import_token",
+    validateImportToken(token) {
+        const trimmed = (token ?? "").trim();
+        if (!trimmed)
+            return { valid: false, reason: "Token is empty" };
+        if (trimmed.length < 16)
+            return { valid: false, reason: "Token is too short" };
+        return { valid: true };
+    },
+    mapTokens(tokens) {
+        return {
+            accessToken: tokens.accessToken,
+            refreshToken: null,
+            expiresIn: null,
+        };
+    },
+};

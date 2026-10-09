@@ -1,27 +1,63 @@
 <div align="center">
-  <img src="./images/9router.png?1" alt="9Router Dashboard" width="800"/>
+  <img src="./images/9router.png?1" alt="Upstream 9Router dashboard reference" width="800"/>
   
-  # 9Router - FREE AI Router & Token Saver
+  # Better Router — AI Router & Token Saver
   
   **Never stop coding. Save 20-40% tokens with RTK + auto-fallback to FREE & cheap AI models.**
   
   **Connect All AI Code Tools (Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini, OpenCode, Cline, OpenClaw...) to 40+ AI Providers & 100+ Models.**
   
-  [![npm](https://img.shields.io/npm/v/9router.svg)](https://www.npmjs.com/package/9router)
-  [![Downloads](https://img.shields.io/npm/dm/9router.svg)](https://www.npmjs.com/package/9router)
-  [![Docker Pulls](https://img.shields.io/docker/pulls/decolua/9router.svg?logo=docker&label=Docker%20pulls)](https://hub.docker.com/r/decolua/9router)
-  [![GHCR](https://img.shields.io/badge/GHCR-decolua%2F9router-blue?logo=github)](https://github.com/decolua/9router/pkgs/container/9router)
-  [![License](https://img.shields.io/npm/l/9router.svg)](https://github.com/decolua/9router/blob/main/LICENSE)
-
-<a href="https://trendshift.io/repositories/22628" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22628" alt="decolua%2F9router | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-
-[🚀 Quick Start](#-quick-start) • [💡 Features](#-key-features) • [📖 Setup](#-setup-guide) • [🌐 Website](https://9router.com)
 
 [🇧🇷 Português (Brasil)](./i18n/README.pt-BR.md) • [🇻🇳 Tiếng Việt](./i18n/README.vi.md) • [🇨🇳 中文](./i18n/README.zh-CN.md) • [🇯🇵 日本語](./i18n/README.ja-JP.md) • [🇷🇺 Русский](./i18n/README.ru.md) • [🇹🇭 ไทย](./i18n/README.th.md) • [🇮🇷 فارسی](./i18n/README.fa_IR.md) • [🇮🇩 Indonesia](./i18n/README.id-ID.md) • [🇪🇸 Español](./i18n/README.es.md) • [🇫🇷 Français](./i18n/README.fr.md)
 
 </div>
 
 ---
+## Better Router fork
+
+Better Router builds on 9Router and ports provider support and model discovery from OmniRoute. Public branding changes; existing `9router` integration IDs, API paths and `~/.9router` data remain compatible. Historical sections below describe upstream; published `npx 9router` and upstream Docker images do **not** install this fork.
+
+Run from this repository:
+
+```bash
+npm install
+npm run dev:webpack -- --port 20128
+```
+
+Dashboard: `http://localhost:20128/dashboard`. Gateway: `http://localhost:20128/v1`. Set `INITIAL_PASSWORD` before exposing the dashboard remotely. Browser-backed providers additionally require `npx playwright install chromium`; configure only sessions/accounts you own. If local libvips triggers a sharp source build, install with `SHARP_IGNORE_GLOBAL_LIBVIPS=1 npm install` to use its prebuilt binaries.
+
+### Automatic provider model synchronization
+
+Open **Providers**, choose a provider, then enable **Auto-sync models** on its connection. Enabling performs an immediate refresh; opted-in active connections refresh on startup when due and every six hours from their last attempt. **Sync models now** runs the same discovery manually. Disabled connections are skipped; turning auto-sync off stops background discovery.
+
+New models persist in SQLite, appear in the provider page and model picker, and are exposed through `/v1/models`. Sync is additive: curated and manually configured models are not replaced or deleted. Authentication failures, empty catalogs and static fallbacks retain the last successful catalog. Providers without a real discovery endpoint continue using their curated catalog; automatic discovery cannot manufacture an upstream model list.
+
+Authenticated management API:
+
+```text
+PATCH /api/providers/{connectionId}/sync-models  {"enabled":true}
+POST  /api/providers/{connectionId}/sync-models
+```
+
+### OmniRoute provider parity
+
+Adds 247 canonical provider IDs across API-key, OAuth, browser-session, local, enterprise, media/search and system routing integrations. Existing equivalent provider IDs are reused rather than duplicated. Includes native adapters where upstream APIs are not OpenAI-compatible, provider-specific credential forms and packaged runtime assets.
+
+Approved exclusions: unverifiable cookie variants `poe-web`, `venice-web`, `v0-vercel-web` (use official `poe`, `venice`, `v0-vercel` API-key integrations), plus retired `galadriel`, `predibase`, `monsterapi`. Historical retired web aliases in the reference are not revived.
+
+Credentials remain server-side and are redacted from connection responses. Catalog fetches reject credential-bearing redirects and use bounded timeouts. Browser-backed providers require local browser/runtime setup; external accounts, quotas and availability remain upstream prerequisites.
+
+Focused runnable checks:
+
+```bash
+node tests/model-sync.self-check.mjs
+node tests/provider-parity.self-check.mjs
+node tests/unit/enterprise-protocol.check.mjs
+node tests/local-protocols.self-check.mjs
+node open-sse/executors/webCookieSelfCheck.mjs
+node tests/provider-media-protocols.self-check.mjs
+```
+
 
 ## 🤔 Why 9Router?
 

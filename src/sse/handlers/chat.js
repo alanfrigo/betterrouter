@@ -26,6 +26,7 @@ import { updateProviderCredentials, checkAndRefreshToken } from "../services/tok
 import { getProjectIdForConnection } from "open-sse/services/projectId.js";
 import { stripModelContextMarker } from "open-sse/utils/modelMarkers.js";
 import { getKeyAccessContext, enforceKeyAccess, filterAdapterModels } from "../services/keyAccess.js";
+import { getAutoModels, parseAutoRoute, recordAutoSuccess } from "../services/autoRouting.js";
 
 /**
  * Handle chat completion request
@@ -102,12 +103,20 @@ export async function handleChat(request, clientRawRequest = null) {
   const requiredCapabilities = detectRequiredCapabilities(body);
 
   // Check if model is a combo (has multiple models with fallback)
-  const comboModels = await getComboModels(modelStr);
+  let autoRoute;
+  let comboModels;
+  try {
+    autoRoute = parseAutoRoute(modelStr);
+    comboModels = await getComboModels(modelStr) || (autoRoute ? await getAutoModels(modelStr) : null);
+  } catch (error) {
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, error.message);
+  }
+  if (autoRoute && !comboModels?.length) return errorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, "No connected model matches automatic routing criteria");
   if (comboModels) {
     // Check for combo-specific strategy first, fallback to global
     const comboStrategies = settings.comboStrategies || {};
     const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
-    const comboStrategy = comboSpecificStrategy || settings.comboStrategy || "fallback";
+    const comboStrategy = autoRoute ? (autoRoute.variant === "chaos" ? "fusion" : "fallback") : comboSpecificStrategy || settings.comboStrategy || "fallback";
     const augmentedModels = await filterAdapterModels(keyAccess, augmentModelsWithCapacityAdapter(comboModels, requiredCapabilities, settings), comboModels);
     const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
 
@@ -137,7 +146,11 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        async (b, m) => {
+          const response = await handleSingleModelChat(b, m, clientRawRequest, request, apiKey);
+          if (autoRoute && response.ok) recordAutoSuccess(modelStr, m);
+          return response;
+        },
         adapterAdded
       ),
       log,

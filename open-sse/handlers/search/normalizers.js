@@ -1,3 +1,5 @@
+import { normalizeProtocolSearch } from "./mediaProtocols.js";
+import { extractXSearchHits } from "./xSearch.js";
 /**
  * Search Response Normalizers
  *
@@ -317,6 +319,9 @@ const NORMALIZERS = {
  * @returns {{results: Array, totalResults: number|null, pagination?: object}}
  */
 export function normalizeSearchResponse(providerId, data, query, searchType) {
+  if (providerId === "x-search") { const results = extractXSearchHits(data, query, 20).map((item, index) => makeResult(providerId, item, index, new Date().toISOString())); return {results,totalResults:results.length}; }
+  if (["nimble-search", "context7", "anysearch-search", "firecrawl"].includes(providerId)) return normalizeProtocolSearch(providerId, data, query, searchType, makeResult);
+  if (providerId === "perplexity-search") return normalizePerplexity(data, query, searchType);
   const fn = NORMALIZERS[providerId];
   return fn ? fn(data, query, searchType) : { results: [], totalResults: null };
 }

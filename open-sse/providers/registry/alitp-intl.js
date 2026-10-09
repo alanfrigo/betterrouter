@@ -8,6 +8,7 @@ export default {
   id: "alitp-intl",
   priority: 11,
   alias: "alitp-intl",
+  aliases: ["qwen-cloud-token-plan"],
   display: {
     name: "Alibaba Token Plan",
     icon: "cloud",

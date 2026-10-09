@@ -240,7 +240,7 @@ export default function HermesToolCard({
     if (!isKnown) {
       setMessage({
         type: "error",
-        text: `"${endpoint}" is not a 9router endpoint. Select the local, tunnel, Tailscale or a saved 9router endpoint before applying to all profiles.`,
+        text: `"${endpoint}" is not a Better Router endpoint. Select the local, tunnel, Tailscale or a saved Better Router endpoint before applying to all profiles.`,
       });
       return;
     }
@@ -552,7 +552,7 @@ export default function HermesToolCard({
                     size="sm"
                     onClick={handleApplyAll}
                     loading={applyingAll}
-                    title="Set the endpoint and API key on every profile that routes through 9router. Each profile keeps its own model."
+                    title="Set the endpoint and API key on every profile that routes through Better Router. Each profile keeps its own model."
                     className="w-full sm:w-auto"
                   >
                     <span className="material-symbols-outlined text-[14px] mr-1">groups</span>Apply to All Profiles

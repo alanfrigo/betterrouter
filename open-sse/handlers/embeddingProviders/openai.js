@@ -13,9 +13,11 @@ const embedUrl = (id) => embedCfg(id).baseUrl || ENDPOINTS[id];
 export default function createOpenAIEmbeddingAdapter(providerId) {
   const cfg = embedCfg(providerId);
   return {
-    buildUrl: () => embedUrl(providerId),
+    buildUrl: (model, credentials) => cfg.connectionBaseUrl && credentials?.providerSpecificData?.baseUrl
+      ? `${credentials.providerSpecificData.baseUrl.replace(/\/(?:chat\/completions|embeddings)\/?$/, "").replace(/\/$/, "")}/embeddings`
+      : embedUrl(providerId),
     buildHeaders: (creds) => {
-      return { "Content-Type": "application/json", ...bearerAuth(creds), ...(cfg.headers || {}) };
+      return { "Content-Type": "application/json", ...(cfg.authType !== "none" || creds.apiKey ? bearerAuth(creds) : {}), ...(cfg.headers || {}) };
     },
     buildBody: (model, { input, encoding_format, dimensions }) => {
       const body = { model, input };

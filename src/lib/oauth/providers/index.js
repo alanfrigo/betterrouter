@@ -31,6 +31,11 @@ import zed from "./zed.js";
 import glm from "./glm.js";
 import minimaxCode from "./minimax-code.js";
 import minimaxCodeGlobal from "./minimax-code-global.js";
+import { workbuddy } from "./workbuddy.js";
+import { openference } from "./openference.js";
+import { devinDesktop } from "./devin-desktop.js";
+import { gitlabDuo } from "./gitlab-duo.js";
+import gheCopilot from "./ghe-copilot.js";
 
 // Provider configurations
 const PROVIDERS = {
@@ -61,6 +66,14 @@ const PROVIDERS = {
   glm,
   "minimax-code": minimaxCode,
   "minimax-code-global": minimaxCodeGlobal,
+  workbuddy,
+  openference,
+  "devin-desktop": devinDesktop,
+  "devin-cli": devinDesktop,
+  "gitlab-duo": gitlabDuo,
+  "ghe-copilot": gheCopilot,
+  "amazon-q": kiro,
+  agy: antigravity,
 };
 
 export { PROVIDERS };
@@ -144,7 +157,7 @@ export async function exchangeTokens(providerName, code, redirectUri, codeVerifi
 
   let extra = null;
   if (provider.postExchange) {
-    extra = await provider.postExchange(tokens);
+    extra = await provider.postExchange(tokens, { ...(meta || {}), config });
   }
 
   return provider.mapTokens(tokens, extra);
@@ -158,7 +171,8 @@ export async function requestDeviceCode(providerName, codeChallenge, options) {
   if (provider.flowType !== "device_code") {
     throw new Error(`Provider ${providerName} does not support device code flow`);
   }
-  return await provider.requestDeviceCode(provider.config, codeChallenge, options || {});
+  const config = provider.prepareConfig ? await provider.prepareConfig(provider.config, options || {}) : provider.config;
+  return await provider.requestDeviceCode(config, codeChallenge, options || {});
 }
 
 /**
@@ -183,7 +197,7 @@ export async function pollForToken(providerName, deviceCode, codeVerifier, extra
       let extra = null;
       if (provider.postExchange) {
         try {
-          extra = await provider.postExchange(result.data);
+          extra = await provider.postExchange(result.data, extraData || {});
         } catch (err) {
           // The grant succeeded but post-login exchange failed (e.g. Muse key
           // mint). The device code is one-shot, so re-polling can never

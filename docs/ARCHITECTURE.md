@@ -1,10 +1,10 @@
-# 9Router Architecture
+# Better Router Architecture
 
-_Last updated: 2026-02-06_
+_Fork additions updated: 2026-10-09; historical upstream sections retained._
 
 ## Executive Summary
 
-9Router is a local AI routing gateway and dashboard built on Next.js.
+Better Router is a local AI routing gateway and dashboard built on Next.js, forked from 9Router.
 It provides a single OpenAI-compatible endpoint (`/v1/*`) and routes traffic across multiple upstream providers with translation, fallback, token refresh, and usage tracking.
 
 Core capabilities:
@@ -17,6 +17,17 @@ Core capabilities:
 - Local persistence for providers, keys, aliases, combos, settings, pricing
 - Usage/cost tracking and request logging
 - Optional cloud sync for multi-device/state sync
+- Per-connection automatic model discovery/sync with additive SQLite catalogs
+
+### Fork runtime additions
+
+`src/instrumentation.js` starts `src/shared/services/modelSyncScheduler.js`. Active opted-in connections refresh when due, with six-hour cadence persisted in `providerSpecificData`; a single-flight map prevents overlapping syncs. `src/lib/providerModels/discovery.js` owns live discovery for both management endpoints and the scheduler. `src/lib/db/repos/modelSyncRepo.js` transactionally inserts new custom models and rechecks connection activation/opt-in before persistence. Existing manual and curated entries are never replaced. Empty, static and failed discoveries preserve the catalog.
+
+Management endpoints: `PATCH /api/providers/{id}/sync-models` toggles opt-in and refreshes on enable; `POST` performs manual sync. Both use existing dashboard authentication. No credential-bearing internal self-fetch is needed. Catalog requests have bounded timeouts and reject redirects. Discovered entries reuse custom-model consumers in the dashboard, selectors and `/v1/models`.
+
+Provider parity adds native adapters, browser/session integrations, local app-server/CLI backends and media/music protocols from OmniRoute. Subprocesses use real packaged assets, not imports from the reference checkout. Public branding is Better Router; compatibility IDs, legacy data paths and API contracts remain unchanged. Browser-backed protocols require Chromium installation and upstream user sessions. See README for approved retired/unverifiable variant exclusions.
+
+Persistence note: historical sections below describing `db.json` predate the current SQLite adapter under `src/lib/db/`; current database is `${DATA_DIR}/db/data.sqlite` with default `~/.9router`.
 
 Primary runtime model:
 

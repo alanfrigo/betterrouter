@@ -3,6 +3,7 @@ export default {
   id: "zed",
   priority: 999,
   alias: "zd",
+  aliases: ["zed-hosted"],
   uiAlias: "zd",
   display: {
     name: "Zed",

@@ -2,6 +2,7 @@ export default {
   id: "xai",
   priority: 280,
   alias: "xai",
+  aliases: ["xai-oauth"],
   display: {
     name: "xAI (Grok)",
     icon: "auto_awesome",

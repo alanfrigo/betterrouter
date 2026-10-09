@@ -104,7 +104,7 @@ export async function POST(request) {
     const supportsApiKeyMode = !!AI_PROVIDERS[provider]?.authModes?.includes("apikey");
     const isValidProvider = APIKEY_PROVIDERS[provider] ||
       FREE_TIER_PROVIDERS[provider] ||
-      supportsApiKeyMode ||
+      supportsApiKeyMode || AI_PROVIDERS[provider]?.noAuth ||
       isWebCookieProvider ||
       isOpenAICompatibleProvider(provider) ||
       isAnthropicCompatibleProvider(provider) ||
@@ -118,7 +118,7 @@ export async function POST(request) {
     // key to paste. Without this, following such a provider's own setup notice returns 400.
     const apiKeySubstitute = AI_PROVIDERS[provider]?.apiKeyOptionalWith;
     const hasApiKeySubstitute = !!(apiKeySubstitute && body.providerSpecificData?.[apiKeySubstitute]);
-    if (!apiKey && provider !== "ollama-local" && !hasApiKeySubstitute) {
+    if (!apiKey && provider !== "ollama-local" && !AI_PROVIDERS[provider]?.noAuth && !hasApiKeySubstitute) {
       return NextResponse.json({ error: `${isWebCookieProvider ? "Cookie value" : "API Key"} is required` }, { status: 400 });
     }
     const connectionName = name || displayName || AI_PROVIDERS[provider]?.name;
@@ -127,6 +127,19 @@ export async function POST(request) {
     }
 
     let providerSpecificData = normalizeProviderSpecificData(provider, body, body.providerSpecificData);
+    for (const field of AI_PROVIDERS[provider]?.credentialFields || []) {
+      if (field.required && !providerSpecificData?.[field.name]) {
+        return NextResponse.json({ error: `${field.label || field.name} is required` }, { status: 400 });
+      }
+    }
+    if (providerSpecificData?.baseUrl && AI_PROVIDERS[provider]?.credentialFields?.some((field) => field.name === "baseUrl")) {
+      try {
+        const upstream = new URL(providerSpecificData.baseUrl);
+        if (!["http:", "https:"].includes(upstream.protocol) || upstream.username || upstream.password) throw new Error();
+      } catch {
+        return NextResponse.json({ error: "Base URL must be HTTP(S) without embedded credentials" }, { status: 400 });
+      }
+    }
 
     // Compatible LLM nodes support multiple API-key connections (key pool); runtime
     // rotates/fails over via getProviderCredentials. Embedding nodes stay single-connection.

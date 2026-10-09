@@ -121,6 +121,7 @@ async function fetchKimchiCatalogRaw(token, endpoint, options = {}) {
       },
       cache: "no-store",
       signal,
+      redirect: "error",
     }, options.proxyOptions || null);
 
     if (!response.ok) {

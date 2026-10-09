@@ -4,6 +4,7 @@ export default {
   id: "alims-intl",
   priority: 11,
   alias: "alims-intl",
+  aliases: ["qwen-cloud","alibaba"],
   display: {
     name: "Alibaba Studio",
     icon: "cloud",

@@ -7,6 +7,11 @@ import { openaiToCommandCodeRequest } from "open-sse/translator/request/openai-t
 import { resolveQoderCredentials, resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { probeBedrockCredentials } from "open-sse/executors/bedrock.js";
 import { normalizeProviderId } from "@/lib/providerNormalization";
+import { getExecutor } from "open-sse/executors/index.js";
+import { validateEnterpriseProvider } from "open-sse/executors/enterprise.js";
+import { validateWebCookie } from "@/lib/providers/validateWebCookie.js";
+import { validateCursorApiKey } from "open-sse/services/cursorApiKeyAuth.js";
+import { validateMediaProtocol } from "@/lib/providers/validateMediaProtocols.js";
 
 // Probe a webSearch/webFetch provider using its searchConfig/fetchConfig.
 // Returns true if API key is accepted (status !== 401 && !== 403).
@@ -98,6 +103,9 @@ export async function POST(request) {
       return NextResponse.json({ error: "Provider and API key required" }, { status: 400 });
     }
 
+    if (provider === "cursor-api") return NextResponse.json(await validateCursorApiKey(apiKey));
+    const specialized = await validateEnterpriseProvider(provider, apiKey, providerSpecificData) || await validateMediaProtocol({ provider, apiKey, providerSpecificData }) || await validateWebCookie({ provider, apiKey, providerSpecificData });
+    if (specialized) return NextResponse.json(specialized);
     let isValid = false;
     let error = null;
 
@@ -611,19 +619,15 @@ export async function POST(request) {
         default: {
           // Generic probe for OpenAI-compatible providers (config-driven from PROVIDERS)
           const cfg = PROVIDERS[provider];
-          if (!cfg || cfg.format !== "openai" || !cfg.baseUrl) {
+          if (!cfg || !["openai", "claude"].includes(cfg.format) || !cfg.baseUrl) {
             return NextResponse.json({ error: "Provider validation not supported" }, { status: 400 });
           }
-          if (cfg.noAuth) {
-            isValid = true;
-            break;
-          }
-          // Build auth headers based on cfg.authHeader (default: bearer)
-          const headers = { "Content-Type": "application/json", ...(cfg.headers || {}) };
-          if (cfg.authHeader === "x-api-key") headers["X-API-Key"] = apiKey;
-          else headers["Authorization"] = `Bearer ${apiKey}`;
-          // Try /models first (fast GET), fallback to chat probe on ambiguous response
-          const modelsUrl = cfg.baseUrl.replace(/\/chat\/completions$/, "/models").replace(/\/chatbot$/, "/models");
+          const executor = getExecutor(provider);
+          const credentials = { apiKey, providerSpecificData: providerSpecificData || {} };
+          const defaultModel = getDefaultModel(provider) || "test";
+          const chatUrl = executor.buildUrl(defaultModel, false, 0, credentials);
+          const headers = executor.buildHeaders(credentials, false, chatUrl, defaultModel);
+          const modelsUrl = cfg.connectionBaseUrl ? chatUrl.replace(/\/chat\/completions$/, "/models") : cfg.modelsUrl || chatUrl.replace(/\/chat\/completions$/, "/models").replace(/\/messages(?:\?.*)?$/, "/models");
           let probeOk = null;
           try {
             const probeRes = await fetch(modelsUrl, { headers, signal: AbortSignal.timeout(8000) });
@@ -635,14 +639,14 @@ export async function POST(request) {
             break;
           }
           // Fallback: minimal chat probe
-          const defaultModel = getDefaultModel(provider) || "test";
-          const chatRes = await fetch(cfg.baseUrl, {
+          const chatBody = { model: defaultModel, messages: [{ role: "user", content: "ping" }], max_tokens: 1 };
+          const chatRes = await fetch(chatUrl, {
             method: "POST",
             headers,
-            body: JSON.stringify({ model: defaultModel, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }),
+            body: JSON.stringify(chatBody),
             signal: AbortSignal.timeout(10000),
           });
-          isValid = chatRes.status !== 401 && chatRes.status !== 403;
+          isValid = chatRes.ok;
           break;
         }
       }

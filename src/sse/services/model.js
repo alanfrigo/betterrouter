@@ -36,6 +36,7 @@ export async function resolveModelAlias(alias) {
  * Get full model info (parse or resolve)
  */
 export async function getModelInfo(modelStr) {
+  if (modelStr === "auto" || modelStr.startsWith("auto/")) return { provider: "auto", model: modelStr === "auto" ? "auto" : modelStr.slice(5) };
   const parsed = parseModel(modelStr);
 
   if (!parsed.isAlias) {

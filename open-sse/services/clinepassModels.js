@@ -43,6 +43,7 @@ async function fetchClineRawModels(credentials) {
       method: "GET",
       headers,
       signal: controller.signal,
+      redirect: "error",
     });
 
     if (!response.ok) return null;
@@ -94,6 +95,7 @@ async function fetchClineFreeTierModels() {
       method: "GET",
       headers: { Accept: "application/json" },
       signal: controller.signal,
+      redirect: "error",
     });
 
     if (!response.ok) return null;

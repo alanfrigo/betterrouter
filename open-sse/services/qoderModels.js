@@ -81,6 +81,7 @@ async function exchangeJobToken(pat, proxyOptions = null, signal = null, region 
       },
       body: JSON.stringify({ personal_token: pat }),
       signal,
+      redirect: "error",
     },
     proxyOptions,
   );
@@ -117,6 +118,7 @@ async function fetchUserIdForJobToken(jobToken, proxyOptions = null, signal = nu
           "User-Agent": "qodercli/1.0.0",
         },
         signal,
+        redirect: "error",
       },
       proxyOptions,
     );
@@ -238,6 +240,7 @@ async function fetchQoderCatalogRaw(credentials, signal, proxyOptions = null, re
         method: "GET",
         headers,
         signal: controller.signal,
+        redirect: "error",
       },
       proxyOptions,
     );

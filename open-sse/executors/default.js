@@ -9,6 +9,7 @@ import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
 import { extractClaudeSessionIdFromUserId } from "../utils/claudeCloaking.js";
+import { applyRegistryBodyRepairs } from "../utils/strictChatHistory.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -21,12 +22,14 @@ const AUTH_DESCRIPTORS = Object.fromEntries(
 
 // Apply a token to a header per scheme (matches legacy: combined always sets, even when undefined).
 function setAuth(headers, spec, token) {
-  headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${token}` : token;
+  headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${token}` : spec.scheme === "raw" ? token : `${spec.scheme} ${token}`;
 }
 
 // Resolve auth onto headers from a descriptor.
 function applyAuth(headers, desc, credentials) {
   if (desc.combined) {
+    const token = credentials.apiKey || credentials.accessToken;
+    if (desc.optional && !token) return;
     // combined providers always set the header (legacy behavior, incl. noAuth → "Bearer undefined")
     setAuth(headers, desc, credentials.apiKey || credentials.accessToken);
     if (desc.anthropicVersion && !headers["anthropic-version"]) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
@@ -81,7 +84,7 @@ export class DefaultExecutor extends BaseExecutor {
   }
 
   transformRequest(model, body) {
-    const transformed = this.applyJsonSchemaFallback(body);
+    const transformed = this.applyJsonSchemaFallback(applyRegistryBodyRepairs(this.provider, body));
 
     if (transformed && typeof transformed === "object") {
       // quirk: some openai-compatible providers reject Anthropic's client_metadata field
@@ -136,6 +139,10 @@ export class DefaultExecutor extends BaseExecutor {
       return `${this.config.baseUrl}/${model}:${stream ? "streamGenerateContent?alt=sse" : "generateContent"}`;
     }
     // urlSuffix (e.g. ?beta=true) declared per-provider in registry
+    if (this.config.connectionBaseUrl && credentials?.providerSpecificData?.baseUrl) {
+      const baseUrl = credentials.providerSpecificData.baseUrl.replace(/\/$/, "");
+      return /\/chat\/completions$/.test(baseUrl) ? baseUrl : `${baseUrl}/chat/completions`;
+    }
     if (this.config.urlSuffix) {
       return `${this.config.baseUrl}${this.config.urlSuffix}`;
     }
@@ -165,7 +172,12 @@ export class DefaultExecutor extends BaseExecutor {
     const desc = rt?.auth || AUTH_DESCRIPTORS[this.provider] || this.resolveAuthDescriptor();
     // Hooks run BEFORE auth so dynamic overlays can't clobber the token.
     for (const hook of desc.hooks || []) HEADER_HOOKS[hook]?.(headers, credentials);
-    applyAuth(headers, desc, credentials);
+    if (!this.config.noAuth || credentials.apiKey || this.config.anonymousApiKey) {
+      const authCredentials = this.config.anonymousApiKey && !credentials.apiKey
+        ? { ...credentials, apiKey: this.config.anonymousApiKey }
+        : credentials;
+      applyAuth(headers, desc, authCredentials);
+    }
 
     // anthropic-compatible-* nodes serving a real Claude model sit in front of
     // Anthropic itself (a rotating multi-account proxy, a corporate gateway),

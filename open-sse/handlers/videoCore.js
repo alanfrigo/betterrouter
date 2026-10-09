@@ -3,6 +3,7 @@ import { HTTP_STATUS } from "../config/runtimeConfig.js";
 import { refreshTokenByProvider } from "../services/tokenRefresh.js";
 import { PROVIDER_MEDIA } from "../providers/index.js";
 import { getVideoAdapter } from "./videoProviders/index.js";
+import { runMediaVideoProtocol } from "./videoProviders/mediaProtocols.js";
 
 // Upstream fetch deadline for video job submission/polling (the job itself is
 // async upstream — this only bounds the HTTP round-trip, not video rendering).
@@ -15,7 +16,7 @@ const VIDEO_FETCH_TIMEOUT_MS = Number(process.env.VIDEO_FETCH_TIMEOUT_MS || 1200
 export const VIDEO_ACTIONS = new Set(["generations", "edits", "extensions"]);
 
 export function getVideoConfig(provider) {
-  return PROVIDER_MEDIA[provider]?.videoConfig || null;
+  return PROVIDER_MEDIA[provider]?.videoConfig || (provider === "veoaifree-web" ? {format:"veoaifree-web"} : null);
 }
 
 /** Strip bearer tokens / obvious secrets from text destined for clients or logs. */
@@ -95,6 +96,12 @@ export async function handleVideoProxyCore({
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Unknown video action: ${action}`);
   }
 
+  try {
+    const mediaResult = await runMediaVideoProtocol({provider,action,requestId,rawBody,credentials,log});
+    if (mediaResult) return mediaResult;
+  } catch (error) {
+    return createErrorResult(error.status || HTTP_STATUS.BAD_GATEWAY, sanitizeSecrets(error.message, credentials));
+  }
   const adapter = getVideoAdapter(provider);
   const fetchSignal = combineSignals(signal, timeoutMs);
 

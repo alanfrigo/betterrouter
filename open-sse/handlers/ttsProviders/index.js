@@ -10,6 +10,7 @@ import xiaomiMimo from "./xiaomi-mimo.js";
 import selfhostedTts from "./selfhostedTts.js";
 import { FORMAT_HANDLERS } from "./genericFormats.js";
 import { parseModelVoice } from "./_base.js";
+import { createMediaSpeechAdapter } from "./mediaProtocols.js";
 
 // Special providers with custom synthesize() logic
 const SPECIAL_ADAPTERS = {
@@ -22,6 +23,8 @@ const SPECIAL_ADAPTERS = {
   gemini,
   "xiaomi-mimo": xiaomiMimo,
   "selfhosted-tts": selfhostedTts,
+  "aws-polly": createMediaSpeechAdapter("aws-polly"),
+  syntx: createMediaSpeechAdapter("syntx"),
 };
 
 export function getTtsAdapter(provider) {

@@ -2,9 +2,7 @@ export default {
   id: "commandcode",
   priority: 100,
   alias: "commandcode",
-  aliases: [
-    "cmc",
-  ],
+  aliases: ["cmc","command-code"],
   uiAlias: "cmc",
   display: {
     name: "Command Code",

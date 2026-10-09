@@ -16,6 +16,9 @@
 # next.js
 /.next/
 /.next-cli-build/
+/.next-final/
+/.next-verification/
+/OmniRoute/
 /out/
 cli/.build-home/
 product

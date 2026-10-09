@@ -205,6 +205,8 @@ export async function refreshGoogleToken(refreshToken, clientId, clientSecret, l
   try {
     const response = await fetch(OAUTH_ENDPOINTS.google.token, {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
+      redirect: "error",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
@@ -260,6 +262,8 @@ export async function refreshCodexToken(refreshToken, log) {
     try {
       const response = await fetch(OAUTH_ENDPOINTS.openai.token, {
         method: "POST",
+        signal: AbortSignal.timeout(20000),
+        redirect: "error",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -342,6 +346,8 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
 
     const response = await proxyAwareFetch(refreshRequest.tokenEndpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
+      redirect: "error",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
@@ -382,6 +388,8 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
 
     const response = await proxyAwareFetch(endpoint, {
       method: "POST",
+      signal: AbortSignal.timeout(20000),
+      redirect: "error",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -420,6 +428,8 @@ export async function refreshKiroToken(refreshToken, providerSpecificData, log, 
 
   const response = await proxyAwareFetch(PROVIDERS.kiro.tokenUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(20000),
+    redirect: "error",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",

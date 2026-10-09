@@ -27,6 +27,9 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   // Registry-declared: names the providerSpecificData field that stands in for an API key, so
   // a provider whose credential lives outside the key field can be saved without one.
   const apiKeyOptionalWith = AI_PROVIDERS?.[provider]?.apiKeyOptionalWith || null;
+  const noAuth = AI_PROVIDERS?.[provider]?.noAuth === true;
+  const credentialFields = AI_PROVIDERS?.[provider]?.credentialFields || [];
+  const [extraCredentials, setExtraCredentials] = useState({});
   const providerRegions = AI_PROVIDERS?.[provider]?.regions || null;
   const defaultRegion = AI_PROVIDERS?.[provider]?.defaultRegion || providerRegions?.[0]?.id || "";
 
@@ -66,6 +69,9 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   const [bulkResult, setBulkResult] = useState(null); // { success, failed }
 
   const buildProviderSpecificData = () => {
+    if (credentialFields.length) {
+      return Object.fromEntries(credentialFields.map(({ name }) => [name, (extraCredentials[name] || "").trim()]).filter(([, value]) => value));
+    }
     if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
       return { baseUrl: formData.ollamaHostUrl.trim() };
     }
@@ -101,6 +107,8 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
   // clickable while silently doing nothing for profile-only Bedrock connections.
   const apiKeySatisfied = () => {
     const psd = buildProviderSpecificData();
+    if (credentialFields.some((field) => field.required && !psd?.[field.name])) return false;
+    if (noAuth) return true;
     if (apiKeyOptionalWith && psd?.[apiKeyOptionalWith]) return true;
     // AWS static keys are a pair: a secret alone saves a connection that can never sign.
     if (usesAwsCredentialForm) return !!formData.apiKey && !!psd?.accessKeyId;
@@ -303,6 +311,17 @@ export default function AddApiKeyModal({ isOpen, provider, providerName, isCompa
             </div>
           </div>
         )}
+        {credentialFields.map((field) => (
+          <Input
+            key={field.name}
+            label={field.label || field.name}
+            type={field.secret ? "password" : "text"}
+            value={extraCredentials[field.name] || ""}
+            onChange={(event) => setExtraCredentials({ ...extraCredentials, [field.name]: event.target.value })}
+            placeholder={field.placeholder || ""}
+            required={field.required === true}
+          />
+        ))}
         {isXaiApiKey && (
           <p className="text-xs text-text-muted">
             Use a direct xAI API key from console.x.ai. This is separate from Grok Build OAuth.

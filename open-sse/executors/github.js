@@ -19,6 +19,9 @@ export class GithubExecutor extends BaseExecutor {
     this.knownCodexModels = new Set();
   }
 
+  fetchUpstream(url, options, proxyOptions) {
+    return proxyAwareFetch(url, options, proxyOptions);
+  }
   // Claude models get routed to Copilot's Anthropic-native /v1/messages shim (see
   // executeWithMessagesEndpoint below) — the only Copilot endpoint that surfaces
   // prompt-cache token counts. gpt/gemini/grok models stay on /chat/completions
@@ -172,7 +175,7 @@ export class GithubExecutor extends BaseExecutor {
 
     log?.debug("GITHUB", "Sending translated request to /responses");
 
-    const response = await proxyAwareFetch(url, {
+    const response = await this.fetchUpstream(url, {
       method: "POST",
       headers,
       body: JSON.stringify(transformedBody),
@@ -267,7 +270,7 @@ export class GithubExecutor extends BaseExecutor {
 
     log?.debug("GITHUB", "Sending translated request to /v1/messages");
 
-    const response = await proxyAwareFetch(url, {
+    const response = await this.fetchUpstream(url, {
       method: "POST",
       headers,
       body: JSON.stringify(transformedBody),

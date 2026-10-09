@@ -1,3 +1,5 @@
+import { transcribeAudioProtocol } from "./audioProtocols.js";
+import { handleSyntxTranscription } from "./syntxAudio.js";
 import { Buffer } from "node:buffer";
 import { createErrorResult } from "../utils/error.js";
 import { transcribeGeminiLive } from "./geminiLiveStt.js";
@@ -296,6 +298,11 @@ export async function handleSttCore({ provider, model, formData, credentials, st
 
   try {
     switch (marker || cfg.format) {
+      case "soniox":
+      case "gladia":
+      case "rev-ai":
+      case "speechmatics": return await transcribeAudioProtocol(cfg, file, model, token, formData);
+      case "syntx-audio": { const response = await handleSyntxTranscription({model,file,credentials}); return {success:response.ok,response,status:response.status}; }
       case "gemini-live": {
         const live = await transcribeGeminiLive({ cfg, file, model, token, formData, mimeType: resolveAudioContentType(file) });
         // response_format parity with the OpenAI-compatible transport: default

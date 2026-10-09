@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -36,6 +36,10 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
   if (existsSync(serverWrapperSource)) {
     cpSync(serverWrapperSource, serverWrapperDestination, { force: true });
     console.log(`[standalone-assets] Copied custom-server.js to ${serverWrapperDestination}`);
+  }
+  for (const asset of ["bin/chatgpt-web-codex-mcp.mjs", "open-sse/lib/deepseek-pow-worker.mjs", "open-sse/lib/deepseek-pow-hash.js", "open-sse/vendor/codex-chatgpt-web"]) {
+    mkdirSync(dirname(resolve(standaloneDir, asset)), { recursive: true });
+    cpSync(resolve(projectRoot, asset), resolve(standaloneDir, asset), { recursive: true, force: true });
   }
 }
 

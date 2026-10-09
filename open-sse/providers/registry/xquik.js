@@ -1,6 +1,7 @@
 export default {
   id: "xquik",
   alias: "xquik",
+  aliases: ["xquik-search"],
   display: {
     name: "Xquik",
     icon: "tag",

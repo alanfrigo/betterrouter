@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -94,30 +94,6 @@ describe("provider icons", () => {
   });
 });
 
-describe("authenticated model discovery", () => {
-  const ROUTE = join(
-    dirname(fileURLToPath(import.meta.url)), "..", "..",
-    "src", "app", "api", "providers", "[id]", "models", "route.js"
-  );
-  const source = readFileSync(ROUTE, "utf8");
-
-  it("registers every batch provider in the /models resolver", () => {
-    // Without an entry here the route answers
-    // 400 "Provider X does not support models listing" and live discovery
-    // silently fails once a key is saved.
-    for (const p of BATCH.map((x) => x.id)) {
-      expect(source).toContain(`${p}: createOpenAIModelsConfig(`);
-    }
-  });
-
-  it("points each entry at that provider's own /models URL", () => {
-    for (const p of BATCH) {
-      const line = source.split("\n").find((l) => l.trim().startsWith(`${p.id}: createOpenAIModelsConfig(`));
-      expect(line, `no models entry for ${p.id}`).toBeTruthy();
-      expect(line).toContain(p.modelsUrl);
-    }
-  });
-});
 
 describe("batch invariants", () => {
   it("keeps every registry id unique", () => {

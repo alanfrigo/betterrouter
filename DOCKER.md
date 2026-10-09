@@ -1,6 +1,6 @@
 # Docker
 
-Run 9Router in a container. Published image: [`decolua/9router`](https://hub.docker.com/r/decolua/9router) — multi-platform `linux/amd64` + `linux/arm64`.
+Run Better Router in a container. Image destination: [`alanmf30/betterrouter`](https://hub.docker.com/r/alanmf30/betterrouter). Release CI builds `linux/amd64` + `linux/arm64`; manual commit builds support only platforms actually built and published.
 
 ---
 
@@ -14,7 +14,7 @@ docker run -d \
   -v "$HOME/.9router:/app/data" \
   -e DATA_DIR=/app/data \
   --name 9router \
-  decolua/9router:latest
+  alanmf30/betterrouter:latest
 ```
 
 App listens on port `20128`. Open: http://localhost:20128
@@ -61,7 +61,7 @@ docker run -d \
   -e HOSTNAME=0.0.0.0 \
   -e DEBUG=true \
   --name 9router \
-  decolua/9router:latest
+  alanmf30/betterrouter:latest
 ```
 
 ## Optional Headroom sidecar
@@ -71,7 +71,7 @@ The 9Router image does not bundle Python or Headroom. To use Headroom in Docker,
 ```yaml
 services:
   9router:
-    image: decolua/9router:latest
+    image: alanmf30/betterrouter:latest
     ports:
       - "20128:20128"
     volumes:
@@ -95,15 +95,15 @@ If Headroom runs on the Docker host instead of as a sidecar, use `http://host.do
 ## Update to latest
 
 ```bash
-docker pull decolua/9router:latest
+docker pull alanmf30/betterrouter:latest
 docker rm -f 9router
 # re-run the quick start command
 ```
 
-To pin a specific version instead of following `latest`, use a numbered image tag:
+To pin a manual commit build instead of following `latest`, use its Git short-SHA tag:
 
 ```bash
-docker pull decolua/9router:0.5.81
+docker pull alanmf30/betterrouter:<git-short-sha>
 ```
 
 ---
@@ -113,29 +113,37 @@ docker pull decolua/9router:0.5.81
 ## Build image locally (test)
 
 ```bash
-docker build -t 9router .
+docker build -t alanmf30/betterrouter .
 
 docker run --rm -p 20128:20128 \
   -v "$HOME/.9router:/app/data" \
   -e DATA_DIR=/app/data \
-  9router
+  alanmf30/betterrouter
 ```
 
-The Dockerfile uses the official Alpine and npm registries by default. Regional mirrors can be supplied when needed:
+## Runtime and build prerequisites
+
+The image uses Node 22 on Debian Bookworm slim (glibc), not Alpine. Chromium and its shared libraries are installed with the bundled Playwright CLI; `PLAYWRIGHT_BROWSERS_PATH=/opt/playwright` is shared by root during installation and the non-root `node` runtime. The image includes Playwright, wreq-js native bindings, tokenizer/image assets, and the standalone MCP subprocess with its traced dependencies. No external OmniRoute checkout is needed or shipped.
+
+Build from the repository root with Docker BuildKit and network access to Debian, npm, and Playwright browser downloads. Default build args: `NODE_IMAGE=node:22-bookworm-slim`, `NPM_REGISTRY=https://registry.npmjs.org/`, `APP_VERSION=unknown`. Keep overrides Debian/glibc-compatible; pass `APP_VERSION` as the release version or commit SHA. Host `node_modules`, `.next*`, CLI build output, and test dependencies are excluded from the context.
 
 ```bash
 docker build \
-  --build-arg ALPINE_MIRROR=mirrors.aliyun.com \
-  --build-arg NPM_REGISTRY=https://registry.npmmirror.com/ \
-  -t 9router .
+  --build-arg APP_VERSION=<git-short-sha> \
+  --build-arg NPM_REGISTRY=https://registry.npmjs.org/ \
+  -t alanmf30/betterrouter:<git-short-sha> .
 ```
+
+Startup fixes ownership of `/app/data` and `/app/data-home`, then drops privileges with `gosu node`. `custom-server.js` remains the entrypoint to preserve trusted client-IP handling. Persist `/app/data-home` separately if usage logs and other `~/.9router` files must survive recreation; `DATA_DIR=/app/data` covers the database. Browser-heavy workloads may need `--shm-size=1g`. External MCP commands need their own executable and credentials; the bundled ChatGPT web MCP runs with included Node dependencies.
+
+Security: set a strong `INITIAL_PASSWORD` and `JWT_SECRET` through runtime environment variables, never build args. Prefer binding `-p 127.0.0.1:20128:20128` unless remote access is intentionally secured. No privileged container is required.
 
 ## Publish (automatic via CI)
 
 Push a Docker-safe semver git tag `vX.Y.Z` (or a prerelease such as `vX.Y.Z-rc.1`) → GitHub Actions builds `linux/amd64` and `linux/arm64` on native runners, health-checks each platform image, verifies the resulting manifest and `/api/health`, then publishes:
 
-- `ghcr.io/decolua/9router:X.Y.Z` + `:latest`
-- `decolua/9router:X.Y.Z` + `:latest`
+- `ghcr.io/alanfrigo/betterrouter:X.Y.Z` + `:latest`
+- `alanmf30/betterrouter:X.Y.Z` + `:latest`
 
 The `v` prefix is used only for the git tag; image tags omit it. A stable tag push promotes `latest`, but a prerelease tag such as `vX.Y.Z-rc.1` publishes only its numbered image by default. Prereleases require an explicit manual `promote_latest` opt-in. Promotion happens only after both native platform builds, both platform health checks, manifest inspection, and the resolved-manifest smoke test succeed. A failed or timed-out platform build therefore cannot move `latest`.
 
@@ -166,7 +174,7 @@ promote_latest:  true
 Numbered image tags are mutable because a republish can replace their manifest. For a deployment that must be immutable, pin the image digest instead:
 
 ```bash
-docker pull decolua/9router@sha256:<verified-digest>
+docker pull alanmf30/betterrouter@sha256:<verified-digest>
 ```
 
 The release workflow runs `/api/health` on each native `amd64` and `arm64` platform image before it uploads the digest artifact or assembles the multi-platform manifest. It then runs a second health check against the resolved version manifest before any requested `latest` promotion.
@@ -175,13 +183,13 @@ During recovery, the selected tag remains the application source while the Docke
 
 The workflow is tag-driven. Creating a git tag does not automatically create a GitHub Release, so the Releases page and the published package/image tags can be at different versions unless a maintainer creates a release separately.
 
-The upstream repository needs these repository secrets for Docker Hub publishing:
+The `alanfrigo/betterrouter` repository needs these repository secrets for Docker Hub publishing:
 
 - `DOCKERHUB_USERNAME`
 - `DOCKERHUB_TOKEN`
 
-GHCR publishing uses the workflow's `GITHUB_TOKEN` with package write permission. Forks can publish to their own GHCR namespace, but Docker Hub publication is restricted to the upstream `decolua/9router` repository.
+GHCR publishing uses the workflow's `GITHUB_TOKEN` with package write permission. Docker Hub publication is restricted to the `alanfrigo/betterrouter` repository and targets `alanmf30/betterrouter`.
 
-The optional repository variables `ALPINE_MIRROR` and `NPM_REGISTRY` can override the default package mirrors used by the CI Docker build.
+The optional repository variable `NPM_REGISTRY` overrides the npm registry used by the CI Docker build. Local commit-SHA publication is separate from this semver workflow; do not create a release tag merely to publish a commit build.
 
 Workflow: `.github/workflows/docker-publish.yml`

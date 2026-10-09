@@ -1,5 +1,6 @@
 import { PROVIDERS } from "../config/providers.js";
 import { OAUTH_ENDPOINTS, REFRESH_LEAD_MS } from "../config/appConstants.js";
+import { refreshSpecialProtocolToken } from "./specialProtocolRefresh.js";
 import {
   refreshXaiToken,
   refreshAccessToken,
@@ -137,6 +138,12 @@ function vertexRefreshHandler(c, log) {
 const REFRESH_HANDLERS = {
   "gemini-cli": (c, log) => refreshGoogleToken(c.refreshToken, PROVIDERS["gemini-cli"].clientId, PROVIDERS["gemini-cli"].clientSecret, log),
   antigravity: (c, log) => refreshGoogleToken(c.refreshToken, PROVIDERS.antigravity.clientId, PROVIDERS.antigravity.clientSecret, log),
+  agy: (c, log) => refreshGoogleToken(c.refreshToken, PROVIDERS.antigravity.clientId, PROVIDERS.antigravity.clientSecret, log),
+  "amazon-q": (c, log) => refreshKiroToken(c.refreshToken, c.providerSpecificData, log),
+  workbuddy: (c) => refreshSpecialProtocolToken("workbuddy", c),
+  openference: (c) => refreshSpecialProtocolToken("openference", c),
+  "gitlab-duo": (c) => refreshSpecialProtocolToken("gitlab-duo", c),
+  gitlab: (c) => refreshSpecialProtocolToken("gitlab-duo", c),
   claude: (c, log) => refreshClaudeOAuthToken(c.refreshToken, log),
   codex: (c, log) => refreshCodexToken(c.refreshToken, log),
   iflow: (c, log) => refreshIflowToken(c.refreshToken, log),

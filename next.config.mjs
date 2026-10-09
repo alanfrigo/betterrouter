@@ -23,11 +23,15 @@ const nextConfig = {
   // @aws-sdk/credential-providers must stay external for the same class of reason: it reads
   // ~/.aws/config and the SSO token cache from disk at runtime and resolves its credential
   // plugins by dynamic require, neither of which survives bundling.
-  serverExternalPackages: ["better-sqlite3", "sql.js", "node:sqlite", "bun:sqlite", "open", "@aws-sdk/credential-providers"],
+  serverExternalPackages: ["better-sqlite3", "sql.js", "node:sqlite", "bun:sqlite", "open", "@aws-sdk/credential-providers", "playwright", "playwright-core", "wreq-js", "tiktoken", "sharp"],
   turbopack: {
     root: tracingRoot
   },
   outputFileTracingRoot: tracingRoot,
+  // External MCP subprocess imports these directly; webpack cannot trace its entrypoint.
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/@modelcontextprotocol/sdk/**/*", "./node_modules/zod/**/*", "./node_modules/zod-to-json-schema/**/*", "./node_modules/ajv/**/*", "./node_modules/ajv-formats/**/*", "./node_modules/fast-deep-equal/**/*", "./node_modules/fast-uri/**/*", "./node_modules/json-schema-traverse/**/*", "./node_modules/require-from-string/**/*", "./node_modules/content-type/**/*"],
+  },
   outputFileTracingExcludes: {
     "*": ["./gitbook/**/*"]
   },

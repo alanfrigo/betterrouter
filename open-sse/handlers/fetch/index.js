@@ -1,3 +1,6 @@
+import { context7Fetch } from "../../executors/context7-fetch.js";
+import { anysearchFetch } from "../../executors/anysearch-fetch.js";
+import { nimbleFetch } from "../../executors/nimble-fetch.js";
 // Web Fetch handler — dispatches to firecrawl, jina-reader, tavily, exa, ollama, tinyfish
 // Returns normalized shape across all providers
 
@@ -105,6 +108,8 @@ export async function handleFetchCore({ url, format, maxCharacters, provider, pr
   const startedAt = Date.now();
 
   try {
+    const protocol = {context7:context7Fetch,"anysearch-search":anysearchFetch,"nimble-search":nimbleFetch}[provider];
+    if (protocol) return await protocol({url,format:fmt,includeMetadata:true,credentials:credentials || {}});
     if (provider === "firecrawl") {
       return await runFirecrawl({ url, fmt, timeoutMs, apiKey, maxCharacters, costPerQuery, startedAt });
     }

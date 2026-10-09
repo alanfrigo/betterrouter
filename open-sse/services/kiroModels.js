@@ -181,7 +181,8 @@ async function fetchKiroCatalogRaw(credentials, signal) {
     response = await fetch(url, {
       method: "GET",
       headers,
-      signal: controller.signal
+      signal: controller.signal,
+      redirect: "error",
     });
   } finally {
     clearTimeout(timer);

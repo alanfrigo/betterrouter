@@ -15,6 +15,10 @@ export class BaseExecutor {
     this.noAuth = config?.noAuth || false;
   }
 
+  fetchUpstream(url, options, proxyOptions) {
+    return proxyAwareFetch(url, options, proxyOptions);
+  }
+
   getProvider() {
     return this.provider;
   }
@@ -143,7 +147,7 @@ export class BaseExecutor {
         const bodyStr = JSON.stringify(transformedBody);
         const fetchT0 = Date.now();
         dbg("FETCH", `${this.provider.toUpperCase()} → ${url} | body=${bodyStr.length}B | connectTimeout=${timeoutMs}ms`);
-        const response = await proxyAwareFetch(url, {
+        const response = await this.fetchUpstream(url, {
           method: "POST",
           headers,
           body: bodyStr,

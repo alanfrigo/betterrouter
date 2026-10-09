@@ -14,9 +14,6 @@ const buildDistDir = path.join(appDir, buildDistDirName);
 
 // Exclude patterns for files/folders we don't want to copy
 const EXCLUDE_PATTERNS = [
-  "@img",           // Sharp image processing (not needed with unoptimized images)
-  "sharp",          // Sharp core lib (not needed with unoptimized images)
-  "detect-libc",    // Sharp dependency
   ".env",           // Environment files
   ".env.local",
   ".env.*.local",
@@ -219,6 +216,11 @@ function buildCliPackage() {
     console.error("❌ custom-server.js not found — without it no request can be proven local,");
     console.error("   so the packaged CLI would demand an API key for its own dashboard and /v1.");
     process.exit(1);
+  }
+  for (const asset of ["bin/chatgpt-web-codex-mcp.mjs", "open-sse/lib/deepseek-pow-worker.mjs", "open-sse/lib/deepseek-pow-hash.js", "open-sse/vendor/codex-chatgpt-web"]) {
+    const destination = path.join(cliAppDir, asset);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.cpSync(path.join(appDir, asset), destination, { recursive: true });
   }
 
   // Step 3b: Ensure sql.js (pure JS fallback) bundled in app/cli/app/node_modules.
